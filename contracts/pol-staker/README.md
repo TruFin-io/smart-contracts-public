@@ -1,9 +1,4 @@
-# POL Staker 🥩 [![Github Actions][gha-badge]][gha] [![Coverage][codecov-badge]][codecov]
-
-[gha]: https://github.com/TruFin-io/smart-contracts/actions
-[gha-badge]: https://github.com/TruFin-io/smart-contracts/actions/workflows/on-pol-staker-changes.yml/badge.svg
-[codecov]: https://codecov.io/gh/TruFin-io/smart-contracts
-[codecov-badge]: https://codecov.io/gh/TruFin-io/smart-contracts/branch/main/graph/badge.svg?token=BIRPGL2TUA
+# POL Staker 🥩
 
 ### Setup
 
