@@ -38,9 +38,9 @@ To analyze a contract locally run the following:
 
 `docker run -v $(pwd):/tmp mythril/myth analyze <path to contract> --solc-json <path to remapping file>`. 
 
-For example to analyze the TruStakeMATICv2 contract:
+For example to analyze the TruStakePOL contract:
 
-`docker run -v $(pwd):/tmp mythril/myth analyze /tmp/contracts/matic-staker/contracts/main/TruStakeMATICv2.sol --solc-json /tmp/remappings.json`
+`docker run -v $(pwd):/tmp mythril/myth analyze /tmp/contracts/pol-staker/contracts/main/TruStakePOL.sol --solc-json /tmp/remappings.json`
 
 This will take a while. Can set `--execution-timeout` or `--max-depth` params to optimize speed and coverage.
 
