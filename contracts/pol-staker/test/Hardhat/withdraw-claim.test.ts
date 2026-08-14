@@ -1,8 +1,8 @@
 /** Testing claiming withdrawals from the TruStakePOL vault. */
 import { AddressZero } from "@ethersproject/constants";
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 
+import { loadFixture } from "../helpers/connection";
 import * as constants from "../helpers/constants";
 import { deployment } from "../helpers/fixture";
 import { parseEther } from "../helpers/math";

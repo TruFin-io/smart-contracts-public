@@ -1,4 +1,5 @@
-import { ethers, network, upgrades } from "hardhat";
+import { upgrades as upgradesFactory } from "@openzeppelin/hardhat-upgrades";
+import hre from "hardhat";
 
 import {
   DELEGATE_REGISTRY_CONTRACT_ADDRESS,
@@ -10,6 +11,10 @@ import {
   WHITELIST_ADDRESS,
 } from "../constants/constants";
 
+const connection = await hre.network.getOrCreate();
+const { ethers } = connection;
+const upgrades = await upgradesFactory(hre, connection);
+
 // Main
 
 async function main() {
@@ -17,7 +22,7 @@ async function main() {
     throw Error("Must define environment variable IMPLEMENTATION address.");
   }
 
-  const chainID = network.config.chainId;
+  const chainID = connection.networkConfig.chainId;
 
   // specify constructor args
   const args = [

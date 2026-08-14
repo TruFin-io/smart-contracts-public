@@ -1,7 +1,7 @@
 /** Testing depositing into the TruStakePOL vault. */
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 
+import { ethers, loadFixture } from "../helpers/connection";
 import * as constants from "../helpers/constants";
 import { deployment } from "../helpers/fixture";
 import { divSharePrice, parseEther } from "../helpers/math";
@@ -105,7 +105,7 @@ describe("Deposit", () => {
     // Transfer all POL, then attempt to deposit
     const pol_balance = await token.balanceOf(one.address);
     await token.connect(one).transfer(two.address, pol_balance);
-    await expect(staker.connect(one).deposit(parseEther(5000))).to.be.reverted;
+    await expect(staker.connect(one).deposit(parseEther(5000))).to.revert(ethers);
   });
 
   it("single deposit to a non-existent validator fails", async () => {

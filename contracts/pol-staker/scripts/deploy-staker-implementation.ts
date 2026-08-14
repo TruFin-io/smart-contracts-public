@@ -1,6 +1,9 @@
-import { ethers, network } from "hardhat";
+import hre from "hardhat";
 
-import { TruStakePOL__factory } from "../typechain-types";
+import { TruStakePOL__factory } from "../types/ethers-contracts";
+
+const connection = await hre.network.getOrCreate();
+const { ethers } = connection;
 
 async function main() {
   const contractFactory = await ethers.getContractFactory<[], TruStakePOL__factory>("TruStakePOL");
@@ -11,7 +14,7 @@ async function main() {
 
   // log deployed address and verification instructions
   console.log(`Staker deployed at ${address}`);
-  console.log(`Verify with: npx hardhat verify ${address} --network ${network.name}`);
+  console.log(`Verify with: npx hardhat verify ${address} --network ${connection.networkName}`);
 }
 
 // We recommend this pattern to be able to use async/await everywhere

@@ -1,7 +1,10 @@
-import { ethers, network, upgrades } from "hardhat";
+import { upgrades as upgradesFactory } from "@openzeppelin/hardhat-upgrades";
+import clc from "cli-color";
+import hre from "hardhat";
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const clc = require("cli-color");
+const connection = await hre.network.getOrCreate();
+const { ethers } = connection;
+const upgrades = await upgradesFactory(hre, connection);
 
 const contractName = "TruStakePOL";
 
@@ -21,7 +24,7 @@ async function main() {
   // Log the deployed address and verification instructions.
   console.log(`${contractName} deployed at ${await contract.getAddress()}`);
   console.log(`Verify with:`);
-  console.log(clc.blackBright(`npx hardhat verify ${await contract.getAddress()} --network ${network.name}`));
+  console.log(clc.blackBright(`npx hardhat verify ${await contract.getAddress()} --network ${connection.networkName}`));
 }
 
 // We recommend this pattern to be able to use async/await everywhere

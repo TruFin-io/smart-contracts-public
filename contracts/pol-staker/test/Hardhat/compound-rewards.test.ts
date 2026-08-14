@@ -1,7 +1,7 @@
 /** Testing restaking rewards and staking claimed rewards in the TruStakePOL vault. */
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 
+import { ethers, loadFixture } from "../helpers/connection";
 import * as constants from "../helpers/constants";
 import { deployment } from "../helpers/fixture";
 import { calculateSharePrice, calculateSharesFromAmount, divSharePrice, parseEther } from "../helpers/math";
@@ -177,7 +177,7 @@ describe("Compound rewards", () => {
   it("does not revert when compounding zero rewards", async () => {
     expect(await staker.totalRewards()).to.equal(0);
 
-    await expect(staker.connect(deployer).compoundRewards(validatorShare)).to.not.be.reverted;
+    await expect(staker.connect(deployer).compoundRewards(validatorShare)).to.not.revert(ethers);
   });
 
   it("emits an event when restaking on a validator reverts", async () => {
@@ -211,7 +211,7 @@ describe("Compound rewards", () => {
   it("does not revert when a non-specified validator is disabled", async () => {
     await staker.disableValidator(validatorShare);
 
-    await expect(staker.connect(deployer).compoundRewards(validatorShare2)).to.not.be.reverted;
+    await expect(staker.connect(deployer).compoundRewards(validatorShare2)).to.not.revert(ethers);
   });
 
   it("does not revert when POL in the vault is below the validator min amount", async () => {
@@ -221,7 +221,7 @@ describe("Compound rewards", () => {
 
     expect(await staker.totalAssets()).to.be.greaterThan(0);
 
-    await expect(staker.connect(deployer).compoundRewards(validatorShare)).to.not.be.reverted;
+    await expect(staker.connect(deployer).compoundRewards(validatorShare)).to.not.revert(ethers);
 
     expect(await staker.totalAssets()).to.equal(0);
   });

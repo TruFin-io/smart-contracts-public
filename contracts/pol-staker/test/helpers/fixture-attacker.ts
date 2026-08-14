@@ -1,24 +1,14 @@
 /** Helper file exporting a testing fixture for fresh deployments. */
-import { ethers, network, upgrades } from "hardhat";
-import { HardhatNetworkConfig } from "hardhat/types";
-
 import * as constants from "../helpers/constants";
+import { ethers, upgrades } from "./connection";
 import { parseEther } from "./math";
 import { setTokenBalancesAndApprove, whitelistUsers } from "./state-interaction";
 
 // deploys attacker contract together with staker
+// The connection is already forked from Sepolia at the block set in hardhat.config.ts,
+// and loadFixture snapshots from there. Hardhat 3 removed hardhat_reset, which this
+// fixture previously used to re-fork on every run.
 export const attackerDeployment = async () => {
-  // reset hardhat network to fork from Sepolia
-  const config = network.config as HardhatNetworkConfig;
-  await ethers.provider.send("hardhat_reset", [
-    {
-      forking: {
-        jsonRpcUrl: process.env.SEPOLIA_RPC,
-        blockNumber: config.forking?.blockNumber,
-      },
-    },
-  ]);
-
   // load deployed contracts
   const token = await ethers.getContractAt(
     constants.STAKING_TOKEN_ABI,
