@@ -1,9 +1,14 @@
 {
   "compilerOptions": {
-    "target": "es2020",
+    "lib": ["es2023"],
+    "target": "es2023",
+    "module": "esnext",
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
-    "moduleResolution": "node",
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["node", "mocha"]
   },
   "include": ["./hardhat.config.ts", "./scripts", "./test"]
 }

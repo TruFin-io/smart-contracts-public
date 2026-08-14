@@ -1,6 +1,6 @@
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 
+import { loadFixture } from "../helpers/connection";
 import { deployment } from "../helpers/fixture";
 import { parseEther, sharesToPOL } from "../helpers/math";
 import { submitCheckpoint } from "../helpers/state-interaction";

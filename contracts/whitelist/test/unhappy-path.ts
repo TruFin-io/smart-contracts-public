@@ -15,11 +15,10 @@ describe("UNHAPPY PATH", () => {
     // currently mock objects are called separately whenever needed
     const whiteListFactory = await ethers.getContractFactory("MasterWhitelist");
     whitelist = await upgrades.deployProxy(whiteListFactory, []);
-  });
 
-  beforeEach(async () => {
-    // create agent
-    whitelist.connect(owner).addAgent(agent.address);
+    // create agent; the whitelist is deployed once for the suite and no test
+    // removes the agent, so it only needs adding here
+    await whitelist.connect(owner).addAgent(agent.address);
   });
 
   it("should fail when being initialized again", async function () {
@@ -109,9 +108,13 @@ describe("UNHAPPY PATH", () => {
   });
 
   it("should revert if trying to clear an already cleared whitelisting status", async function () {
-    await whitelist.connect(agent).clearWhitelistStatus(user.address);
+    // a dedicated account keeps this independent of the order the tests run in:
+    // clearing `user` only succeeds if an earlier test left it with a status
+    const [, , , other] = await ethers.getSigners();
+    await whitelist.connect(agent).blacklistUser(other.address);
+    await whitelist.connect(agent).clearWhitelistStatus(other.address);
 
-    await expect(whitelist.connect(agent).clearWhitelistStatus(user.address))
+    await expect(whitelist.connect(agent).clearWhitelistStatus(other.address))
       .to.be.revertedWithCustomError(whitelist, "WhitelistingStatusAlreadyCleared");
   });
 

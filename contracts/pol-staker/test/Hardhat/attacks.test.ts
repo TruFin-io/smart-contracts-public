@@ -1,7 +1,7 @@
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { formatEther } from "ethers";
 
+import { loadFixture } from "../helpers/connection";
 import { deployment } from "../helpers/fixture";
 import { attackerDeployment } from "../helpers/fixture-attacker";
 import { parseEther, sharePriceEquality } from "../helpers/math";

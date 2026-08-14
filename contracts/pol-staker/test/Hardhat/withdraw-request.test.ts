@@ -1,7 +1,7 @@
 /** Testing initiating withdrawals from the TruStakePOL vault. */
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 
+import { loadFixture } from "../helpers/connection";
 import * as constants from "../helpers/constants";
 import { deployment } from "../helpers/fixture";
 import { calculateSharesFromAmount, divSharePrice, parseEther } from "../helpers/math";

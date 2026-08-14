@@ -1,7 +1,6 @@
 /** Calculation functions as in Solidity. */
-import { ethers } from "hardhat";
-
 import * as constants from "../../constants/constants";
+import { ethers } from "./connection";
 
 export const parseEther = (n: number): bigint => ethers.parseEther(n.toString());
 

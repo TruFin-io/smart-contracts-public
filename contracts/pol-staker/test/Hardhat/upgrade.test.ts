@@ -1,8 +1,20 @@
-import { impersonateAccount, loadFixture } from "@nomicfoundation/hardhat-network-helpers";
+import { upgrades as upgradesFactory } from "@openzeppelin/hardhat-upgrades";
 import { expect } from "chai";
-import { ethers, upgrades } from "hardhat";
+import hre from "hardhat";
 
 import * as constants from "../helpers/constants";
+
+// This suite upgrades the Staker already deployed to Sepolia, so it forks at that
+// deployment block rather than the block the rest of the suite uses. Hardhat 3 removed
+// hardhat_reset, so the fork block is pinned when the connection is created instead.
+const forkBlock = 9209005;
+const connection = await hre.network.create({
+  network: "hardhat",
+  override: { forking: { url: process.env.SEPOLIA_RPC ?? "", blockNumber: forkBlock } },
+});
+const { ethers, networkHelpers } = connection;
+const { loadFixture, impersonateAccount } = networkHelpers;
+const upgrades = await upgradesFactory(hre, connection);
 
 describe("Upgrade", () => {
   let staker, proxyAdminOwner;
@@ -54,19 +66,8 @@ describe("Upgrade", () => {
 });
 
 const forkAtBlock = async () => {
-  // the block when the Staker we should upgrade from was deployed to Sepolia
-  const forkBlock = 9209005;
   const proxyAdminOwner = "0xbb447Ff57D2Be03F6804aEB1A7d1ca06c01eD0C3";
   const [deployer] = await ethers.getSigners();
-
-  await ethers.provider.send("hardhat_reset", [
-    {
-      forking: {
-        jsonRpcUrl: process.env.SEPOLIA_RPC,
-        blockNumber: forkBlock,
-      },
-    },
-  ]);
 
   const staker = await ethers.getContractAt(
     constants.SEPOLIA_POL_STAKER_ABI,

@@ -1,16 +1,13 @@
-import "@nomicfoundation/hardhat-toolbox";
-import "@openzeppelin/hardhat-upgrades";
+import hardhatToolboxMochaEthers from "@nomicfoundation/hardhat-toolbox-mocha-ethers";
+import hardhatUpgrades from "@openzeppelin/hardhat-upgrades";
+import hardhatContractSizer from "@solidstate/hardhat-contract-sizer";
 import * as dotenv from "dotenv";
-import "hardhat-abi-exporter";
-import "hardhat-contract-sizer";
-import "hardhat-gas-reporter";
+import { configVariable, defineConfig } from "hardhat/config";
 
 dotenv.config({ path: "../../.env" });
 
-export default {
-  mocha: {
-    timeout: 120000,
-  },
+export default defineConfig({
+  plugins: [hardhatToolboxMochaEthers, hardhatUpgrades, hardhatContractSizer],
   solidity: {
     version: "0.8.28",
     settings: {
@@ -22,49 +19,44 @@ export default {
     },
   },
   networks: {
+    hardhat: {
+      type: "edr-simulated",
+      forking: {
+        //Due to RPC error using Mainnet RPC
+        url: configVariable("SEPOLIA_RPC"),
+        // block before checkpoint submitted
+        blockNumber: 6562465,
+      },
+    },
     sepolia: {
-      url: process.env.SEPOLIA_RPC,
+      type: "http",
+      url: configVariable("SEPOLIA_RPC"),
       chainId: 11155111,
-      // gas: 180_000_000, // 200_000_000
-      // gasLimit: 180_000_000, // 200_000_000
-      // gasPrice: 8_000_000_000, // 400_000_000_000
       accounts: process.env.DEPLOYER_PK ? [process.env.DEPLOYER_PK] : [],
     },
     mainnet: {
-      url: process.env.MAINNET_RPC,
+      type: "http",
+      url: configVariable("MAINNET_RPC"),
       chainId: 1,
       gas: 5_000_000,
       gasPrice: 10_000_000_000,
       accounts: process.env.DEPLOYER_PK ? [process.env.DEPLOYER_PK] : [],
     },
-    hardhat: {
-      forking: {
-        //Due to RPC error using Mainnet RPC
-        url: process.env.SEPOLIA_RPC,
-        // block before checkpoint submitted
-        blockNumber: 6562465,
-      },
-      accounts: {
-        privateKey: [process.env.DEPLOYER_PK],
-      },
+  },
+  verify: {
+    etherscan: {
+      apiKey: process.env.ETHERSCAN_API || "",
     },
   },
-  etherscan: {
-    apiKey: process.env.ETHERSCAN_API,
+  test: {
+    mocha: {
+      timeout: 120000,
+    },
   },
-  sourcify: {
-    enabled: false,
+  // Replaces the skipFiles in .solcover.js: the attacker contracts under
+  // contracts/test exist only to exercise the vault and should not count towards
+  // its coverage. Matched as globs against project-relative source names.
+  coverage: {
+    skipFiles: ["contracts/test/**"],
   },
-  gasReporter: {
-    // enabled: true,
-  },
-  abiExporter: {
-    path: "../../abis/pol-staker",
-    runOnCompile: true,
-    clear: true,
-    flat: true,
-    only: [":TruStakePOL"],
-    spacing: 2,
-    format: "json", // minimal
-  },
-};
+});

@@ -1,11 +1,10 @@
 /** Helper functions for accessing and modifying smart contract state for testing. */
-import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import * as helpers from "@nomicfoundation/hardhat-network-helpers";
-import { AbiCoder, Contract, keccak256 } from "ethers";
-import { ethers } from "hardhat";
+import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/types";
+import { AbiCoder, Addressable, Contract, keccak256 } from "ethers";
 
 import checkpointSubmissions from "../helpers/checkpoints.json";
 import * as constants from "../helpers/constants";
+import { ethers, networkHelpers as helpers } from "./connection";
 
 // STATE GETTERS
 
@@ -46,8 +45,9 @@ export const setTokenBalancesAndApprove = async (
     // set balance
     await setTokenBalance(token, user.address, amount);
 
-    // approve amount to recipient
-    await token.connect(user).approve(recipient, amount);
+    // approve amount to recipient. connect() is typed as returning BaseContract, which
+    // has no dynamic method signatures, so the handle is narrowed back to Contract.
+    await (token.connect(user) as Contract).approve(recipient, amount);
   }
 };
 
@@ -115,7 +115,9 @@ export const advanceEpochs = async (stakeManager: Contract, epochIncrease: numbe
   await helpers.setStorageAt(await stakeManager.getAddress(), currentEpochIndex, e + epochIncrease);
 };
 
-export const whitelistUsers = async (whitelist, users: HardhatEthersSigner[]): Promise<void> => {
+// Addressable rather than HardhatEthersSigner: the attacker fixture whitelists a mix of
+// signers and deployed contracts, and all this needs is getAddress().
+export const whitelistUsers = async (whitelist, users: Addressable[]): Promise<void> => {
   const whitelistOwner = await whitelist.owner();
 
   await helpers.impersonateAccount(whitelistOwner);

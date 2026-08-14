@@ -9,6 +9,7 @@ coverage
 dist
 node_modules
 typechain-types
+types
 broadcast
 out
 .openzeppelin
