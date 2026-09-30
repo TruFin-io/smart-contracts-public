@@ -29,6 +29,10 @@ describe("Upgrade", () => {
 
     // Validates and deploys a new implementation contract and returns its address.
     const address = await upgrades.prepareUpgrade(stakerAddress, stakerFactory, {
+      constructorArgs: [
+        constants.LEGACY_MATIC_ADDRESS[constants.CHAIN_ID.SEPOLIA],
+        constants.MIGRATION_ADDRESS[constants.CHAIN_ID.SEPOLIA],
+      ],
       unsafeAllowRenames: true,
       kind: "transparent",
     });
@@ -101,6 +105,10 @@ async function upgradeStakerContract(proxyAdminOwner) {
   const stakerAddress = constants.STAKER_ADDRESS[constants.CHAIN_ID.SEPOLIA];
 
   const contract = await upgrades.upgradeProxy(stakerAddress, stakerFactory, {
+    constructorArgs: [
+      constants.LEGACY_MATIC_ADDRESS[constants.CHAIN_ID.SEPOLIA],
+      constants.MIGRATION_ADDRESS[constants.CHAIN_ID.SEPOLIA],
+    ],
     unsafeAllowRenames: true,
     kind: "transparent",
   });

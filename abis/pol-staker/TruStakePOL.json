@@ -1,8 +1,35 @@
 [
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_legacyMaticAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_migrationAddress",
+        "type": "address"
+      }
+    ],
     "stateMutability": "nonpayable",
     "type": "constructor"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "AddressHasNoCode",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "CallerNotStaker",
+    "type": "error"
   },
   {
     "inputs": [],
@@ -113,6 +140,11 @@
   {
     "inputs": [],
     "name": "InvalidInitialization",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "LegacyMaticMigrationNotOneToOne",
     "type": "error"
   },
   {
@@ -383,6 +415,50 @@
       }
     ],
     "name": "Initialized",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "_legacyMaticAmount",
+        "type": "uint256"
+      }
+    ],
+    "name": "LegacyMaticSyncFailed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "_legacyMaticAmount",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "_polReceived",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "_treasuryShares",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_treasuryBalance",
+        "type": "uint256"
+      }
+    ],
+    "name": "LegacyMaticSynced",
     "type": "event"
   },
   {
@@ -859,6 +935,32 @@
     "type": "event"
   },
   {
+    "inputs": [],
+    "name": "LEGACY_MATIC",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MIGRATION",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -1319,6 +1421,25 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_legacyMaticAmount",
+        "type": "uint256"
+      }
+    ],
+    "name": "migrateLegacyMatic",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "polReceived",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
