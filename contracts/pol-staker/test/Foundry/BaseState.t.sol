@@ -21,6 +21,8 @@ abstract contract BaseState is StorageUtils, Test {
     address public whitelistAddress;
     address public treasuryAddress;
     address public delegateRegistry;
+    address public legacyMaticAddress;
+    address public migrationAddress;
     address public alice;
     address public bob;
     address public charlie;
@@ -42,15 +44,20 @@ abstract contract BaseState is StorageUtils, Test {
         secondValidatorAddress = makeAddr("SecondValidator");
         treasuryAddress = makeAddr("Treasury");
         delegateRegistry = makeAddr("DelegateRegistry");
+        legacyMaticAddress = makeAddr("LegacyMatic");
+        migrationAddress = makeAddr("Migration");
         alice = makeAddr("Alice");
         bob = makeAddr("Bob");
         charlie = makeAddr("Charlie");
         dave = makeAddr("Dave");
 
-        TruStakePOL logic = new TruStakePOL();
+        vm.etch(legacyMaticAddress, hex"00");
+        vm.etch(migrationAddress, hex"00");
+        TruStakePOL logic = new TruStakePOL(legacyMaticAddress, migrationAddress);
         ERC1967Proxy proxy = new ERC1967Proxy(address(logic), bytes(""));
         staker = TruStakePOL(address(proxy));
         vm.label(address(staker), "Staker");
+        vm.mockCall(legacyMaticAddress, abi.encodeCall(IERC20.balanceOf, (address(staker))), abi.encode(uint256(0)));
 
         storageTarget = address(staker); // set the target in `StorageUtils`
 

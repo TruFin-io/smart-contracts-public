@@ -24,6 +24,8 @@ contract BaseInvariantTest is Test {
     address constant WHITELIST_ADDRESS = 0x9B46d57ebDb35aC2D59AB500F69127Bb24DA62b1;
     address constant TREASURY_ADDRESS = 0xa262FbF18d19477325228c2bB0c3f9508098287B;
     address constant DELEGATE_REGISTRY_ADDRESS = 0x32Bb2dB7826cf342743fe80832Fe4DF725879C2D;
+    address constant LEGACY_MATIC_ADDRESS = 0x3fd0A53F4Bf853985a95F4Eb3F9C9FDE1F8e2b53;
+    address constant MIGRATION_ADDRESS = 0x3A3B750E7d4d389Bc1d0be20E5D09530F82B9911;
 
     uint16 constant FEE_PRECISION = 1e4;
     uint256 constant SHARE_PRICE_PRECISION = 1e22;
@@ -39,7 +41,7 @@ contract BaseInvariantTest is Test {
         vm.selectFork(forkId);
 
         // deploy and initialize Staker
-        TruStakePOL logic = new TruStakePOL();
+        TruStakePOL logic = new TruStakePOL(LEGACY_MATIC_ADDRESS, MIGRATION_ADDRESS);
         ERC1967Proxy proxy = new ERC1967Proxy(address(logic), bytes(""));
         staker = TruStakePOL(address(proxy));
         vm.label(address(staker), "Staker");

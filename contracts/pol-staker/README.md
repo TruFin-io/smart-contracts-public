@@ -69,13 +69,14 @@ a multisig.
 
 Run the following commands:
 
-1. Deploy the implementation:  
-   `npx hardhat run scripts/deploy-staker-implementation.ts --network mainnet`
+1. Validate, deploy, and record the implementation in the OpenZeppelin manifest:
+   `CONTRACT=<proxy contract address> npx hardhat run scripts/deploy-staker-implementation.ts --network mainnet`
 
 2. Verify the deployment:  
-   `npx hardhat verify <new implementation address> --network mainnet`
+   `npx hardhat verify <new implementation address> <legacy MATIC address> <migration address> --network mainnet`
 
 3. Manually upgrade the proxy admin to point the proxy to the new implementation. This is done via the Safe app.
 
-4. Import the implementation:  
-   `IMPLEMENTATION=<new implementation address> npx hardhat run scripts/import-staker-implementation.ts --network mainnet`
+The legacy MATIC and Polygon migration addresses are immutable constructor arguments embedded in each implementation.
+They are exposed through the `LEGACY_MATIC()` and `MIGRATION()` getters so the wiring can be checked on a block
+explorer. The deployment script reads the addresses for the selected chain from `constants/constants.ts`.

@@ -53,6 +53,10 @@ export const attackerDeployment = async () => {
       constants.FEE,
     ],
     {
+      constructorArgs: [
+        constants.LEGACY_MATIC_ADDRESS[constants.DEFAULT_CHAIN_ID],
+        constants.MIGRATION_ADDRESS[constants.DEFAULT_CHAIN_ID],
+      ],
       redeployImplementation: "always",
     },
   );

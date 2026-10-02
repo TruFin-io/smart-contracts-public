@@ -15,6 +15,7 @@ import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Pau
 import {IValidatorShare} from "../interfaces/IValidatorShare.sol";
 import {IStakeManager} from "../interfaces/IStakeManager.sol";
 import {IDelegateRegistry} from "../interfaces/IDelegateRegistry.sol";
+import {IPolygonMigration} from "../interfaces/IPolygonMigration.sol";
 
 // TruFin
 import {ITruStakePOL} from "../interfaces/ITruStakePOL.sol";
@@ -50,6 +51,13 @@ contract TruStakePOL is
     bytes32 private constant TruStakePOLStorageLocation =
         0x2d27943992ce797a3601911eb0653a18c3311f54cf95fc9eb4503583f50b2300;
 
+    /// @notice Legacy MATIC token whose forced transfers the vault recovers as POL.
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    address public immutable LEGACY_MATIC;
+    /// @notice Polygon migration contract used to convert legacy MATIC into POL.
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    address public immutable MIGRATION;
+
     function _getTruStakePOLStorage() private pure returns (TruStakePOLStorageStruct storage $) {
         // solhint-disable-next-line no-inline-assembly
         assembly {
@@ -76,7 +84,14 @@ contract TruStakePOL is
     //************************************************************************//
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
+    constructor(address _legacyMaticAddress, address _migrationAddress) {
+        _checkNotZeroAddress(_legacyMaticAddress);
+        _checkNotZeroAddress(_migrationAddress);
+        if (_legacyMaticAddress.code.length == 0) revert AddressHasNoCode(_legacyMaticAddress);
+        if (_migrationAddress.code.length == 0) revert AddressHasNoCode(_migrationAddress);
+
+        LEGACY_MATIC = _legacyMaticAddress;
+        MIGRATION = _migrationAddress;
         _disableInitializers();
     }
 
@@ -163,13 +178,16 @@ contract TruStakePOL is
     /// @inheritdoc ITruStakePOL
     function getDust() external view override returns (uint256) {
         TruStakePOLStorageStruct storage $ = _getTruStakePOLStorage();
-        return (totalRewards() * $._fee) / FEE_PRECISION;
+        return (_totalUnprocessedRewards() * $._fee) / FEE_PRECISION;
     }
 
     /// @inheritdoc ITruStakePOL
+    /// @dev Returns only the POL principal held by the vault. Any forced legacy MATIC is deliberately
+    ///   excluded here: like pending validator rewards, it is treated as an unprocessed reward and is
+    ///   therefore reflected (net of fee) through `sharePrice()` and `getDust()`, not as vault principal.
     function totalAssets() public view override returns (uint256) {
         TruStakePOLStorageStruct storage $ = _getTruStakePOLStorage();
-        return IERC20($._stakingTokenAddress).balanceOf(address(this));
+        return _stakingTokenAssets($);
     }
 
     /// @inheritdoc ITruStakePOL
@@ -200,8 +218,8 @@ contract TruStakePOL is
 
         TruStakePOLStorageStruct storage $ = _getTruStakePOLStorage();
 
-        uint256 totalCapitalTimesFeePrecision =
-            (totalStaked() + totalAssets()) * FEE_PRECISION + (FEE_PRECISION - $._fee) * totalRewards();
+        uint256 totalCapitalTimesFeePrecision = (totalStaked() + _stakingTokenAssets($)) * FEE_PRECISION
+            + (FEE_PRECISION - $._fee) * _totalUnprocessedRewards();
 
         return (totalCapitalTimesFeePrecision * WAD, totalSupply() * FEE_PRECISION);
     }
@@ -500,20 +518,19 @@ contract TruStakePOL is
 
     /// @inheritdoc ITruStakePOL
     function compoundRewards(address _validator) external override nonReentrant whenNotPaused {
+        _syncLegacyMaticRewards();
+
         (uint256 globalPriceNum, uint256 globalPriceDenom) = sharePrice();
         uint256 amountRestaked = _restake();
 
         TruStakePOLStorageStruct storage $ = _getTruStakePOLStorage();
 
         // To keep share price constant when rewards are staked, new shares need to be minted
-        uint256 shareIncrease = (amountRestaked * $._fee * WAD * globalPriceDenom) / (globalPriceNum * FEE_PRECISION);
-
-        // Minted shares are given to the treasury to effectively take a fee
-        _mint($._treasuryAddress, shareIncrease);
+        uint256 shareIncrease = _mintTreasuryFeeShares(amountRestaked, globalPriceNum, globalPriceDenom);
 
         // if there is POL in the vault, stake it with the provided validator
-        if (totalAssets() > 0) {
-            _deposit(address(0), 0, _validator);
+        if (_stakingTokenAssets($) > 0) {
+            _depositAfterLegacyMaticSync(address(0), 0, _validator);
         }
 
         emit RewardsCompounded(
@@ -525,6 +542,23 @@ contract TruStakePOL is
             totalRewards(),
             totalAssets()
         );
+    }
+
+    /// @inheritdoc ITruStakePOL
+    function migrateLegacyMatic(uint256 _legacyMaticAmount) external override returns (uint256 polReceived) {
+        if (msg.sender != address(this)) revert CallerNotStaker();
+
+        TruStakePOLStorageStruct storage $ = _getTruStakePOLStorage();
+        uint256 polBefore = _stakingTokenAssets($);
+
+        IERC20(LEGACY_MATIC).forceApprove(MIGRATION, _legacyMaticAmount);
+        IPolygonMigration(MIGRATION).migrate(_legacyMaticAmount);
+        IERC20(LEGACY_MATIC).forceApprove(MIGRATION, 0);
+
+        // Polygon migrates 1:1. Anything else is a misbehaving migration, so revert and let the caller's
+        // catch roll back the approval and transfers while the MATIC stays counted in the share price.
+        polReceived = _stakingTokenAssets($) - polBefore;
+        if (polReceived != _legacyMaticAmount) revert LegacyMaticMigrationNotOneToOne();
     }
 
     /// @inheritdoc ITruStakePOL
@@ -562,6 +596,15 @@ contract TruStakePOL is
     /// @param _amount Amount to be deposited.
     /// @param _validator Address of the validator to stake to.
     function _deposit(address _user, uint256 _amount, address _validator) private returns (uint256 shareIncreaseUser) {
+        _syncLegacyMaticRewards();
+        return _depositAfterLegacyMaticSync(_user, _amount, _validator);
+    }
+
+    /// @notice Stakes and mints shares after any pending legacy MATIC synchronization has been attempted.
+    function _depositAfterLegacyMaticSync(address _user, uint256 _amount, address _validator)
+        private
+        returns (uint256 shareIncreaseUser)
+    {
         TruStakePOLStorageStruct storage $ = _getTruStakePOLStorage();
         if ($._validators[_validator].state != ValidatorState.ENABLED) revert ValidatorNotEnabled();
 
@@ -570,12 +613,10 @@ contract TruStakePOL is
         // calculate share increase
         shareIncreaseUser = convertToShares(_amount);
         uint256 shareIncreaseTsy =
-            (getRewardsFromValidator(_validator) * $._fee * WAD * globalPriceDenom) / (globalPriceNum * FEE_PRECISION);
+            _mintTreasuryFeeShares(getRewardsFromValidator(_validator), globalPriceNum, globalPriceDenom);
 
         // piggyback previous withdrawn rewards in this staking call
-        uint256 stakeAmount = _amount + totalAssets();
-
-        _mint($._treasuryAddress, shareIncreaseTsy);
+        uint256 stakeAmount = _amount + _stakingTokenAssets($);
 
         // mint shares to user and transfer staking token from user to Staker
         if (_user != address(0)) {
@@ -617,9 +658,11 @@ contract TruStakePOL is
     {
         if (_amount == 0) revert WithdrawalRequestAmountCannotEqualZero();
 
-        (uint256 globalPriceNum, uint256 globalPriceDenom) = sharePrice();
-
         TruStakePOLStorageStruct storage $ = _getTruStakePOLStorage();
+
+        _syncLegacyMaticRewards();
+
+        (uint256 globalPriceNum, uint256 globalPriceDenom) = sharePrice();
 
         // If remaining user balance is below 1 POL, entire balance is withdrawn and all shares
         // are burnt.
@@ -641,11 +684,9 @@ contract TruStakePOL is
         }
 
         uint256 shareIncreaseTsy =
-            (getRewardsFromValidator(_validator) * $._fee * globalPriceDenom * WAD) / (globalPriceNum * FEE_PRECISION);
+            _mintTreasuryFeeShares(getRewardsFromValidator(_validator), globalPriceNum, globalPriceDenom);
 
         _burn(_user, shareDecreaseUser);
-
-        _mint($._treasuryAddress, shareIncreaseTsy);
 
         // interact with staking contract to initiate unbonding
         unbondNonce = _unbond(_amount, _validator);
@@ -719,9 +760,10 @@ contract TruStakePOL is
     /// @param _validator Address of the validator to claim from.
     /// @return The amount of POL received by the vault from the validator.
     function _claimStake(uint256 _unbondNonce, address _validator) private returns (uint256) {
-        uint256 assetsBefore = totalAssets();
+        TruStakePOLStorageStruct storage $ = _getTruStakePOLStorage();
+        uint256 assetsBefore = _stakingTokenAssets($);
         IValidatorShare(_validator).unstakeClaimTokens_newPOL(_unbondNonce);
-        return totalAssets() - assetsBefore;
+        return _stakingTokenAssets($) - assetsBefore;
     }
 
     /// @notice Calls the validator share contract's restake functionality on all enabled validators
@@ -746,9 +788,57 @@ contract TruStakePOL is
         return totalAmountRestaked;
     }
 
+    /// @notice Converts any legacy MATIC held by the vault into POL and mints treasury fee shares.
+    /// @dev The migration call is wrapped in try/catch so that an unavailable migration contract can never
+    ///   block deposits, withdrawals or compounding. On failure the MATIC is left untouched; it stays fully
+    ///   valued (net of fee) in `sharePrice()` as an unprocessed reward, so share price is unaffected either
+    ///   way, and the conversion is retried on the next call.
+    function _syncLegacyMaticRewards() private {
+        TruStakePOLStorageStruct storage $ = _getTruStakePOLStorage();
+        uint256 legacyMaticAmount = _legacyMaticAssets();
+        if (legacyMaticAmount == 0) return;
+
+        (uint256 globalPriceNum, uint256 globalPriceDenom) = sharePrice();
+
+        try this.migrateLegacyMatic(legacyMaticAmount) returns (uint256 polReceived) {
+            uint256 shareIncrease = _mintTreasuryFeeShares(polReceived, globalPriceNum, globalPriceDenom);
+
+            emit LegacyMaticSynced(legacyMaticAmount, polReceived, shareIncrease, balanceOf($._treasuryAddress));
+        } catch {
+            emit LegacyMaticSyncFailed(legacyMaticAmount);
+        }
+    }
+
+    /// @notice Mints treasury fee shares for unprocessed rewards while keeping share price stable.
+    function _mintTreasuryFeeShares(uint256 grossRewardAmount, uint256 priceNum, uint256 priceDenom)
+        private
+        returns (uint256 shareIncrease)
+    {
+        TruStakePOLStorageStruct storage $ = _getTruStakePOLStorage();
+        shareIncrease = (grossRewardAmount * $._fee * WAD * priceDenom) / (priceNum * FEE_PRECISION);
+        if (shareIncrease > 0) {
+            _mint($._treasuryAddress, shareIncrease);
+        }
+    }
+
     //************************************************************************//
     // Private View Functions
     //************************************************************************//
+
+    /// @notice Returns the POL balance held directly by the vault.
+    function _stakingTokenAssets(TruStakePOLStorageStruct storage $) private view returns (uint256) {
+        return IERC20($._stakingTokenAddress).balanceOf(address(this));
+    }
+
+    /// @notice Returns the legacy MATIC balance held directly by the vault.
+    function _legacyMaticAssets() private view returns (uint256) {
+        return IERC20(LEGACY_MATIC).balanceOf(address(this));
+    }
+
+    /// @notice Returns pending validator rewards plus legacy MATIC awaiting fee processing.
+    function _totalUnprocessedRewards() private view returns (uint256) {
+        return totalRewards() + _legacyMaticAssets();
+    }
 
     /// @notice Private function to convert POL to TruPOL.
     /// @param assets Assets in POL to be converted into TruPOL.

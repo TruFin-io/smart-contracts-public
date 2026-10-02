@@ -2,6 +2,8 @@ import { upgrades as upgradesFactory } from "@openzeppelin/hardhat-upgrades";
 import clc from "cli-color";
 import hre from "hardhat";
 
+import { LEGACY_MATIC_ADDRESS, MIGRATION_ADDRESS } from "../constants/constants";
+
 const connection = await hre.network.getOrCreate();
 const { ethers } = connection;
 const upgrades = await upgradesFactory(hre, connection);
@@ -18,7 +20,17 @@ async function main() {
 
   // Load the contract proxy and await deployment.
   const contractFactory = await ethers.getContractFactory(contractName);
-  const contract = await upgrades.upgradeProxy(contractAddress, contractFactory, { unsafeAllowRenames: true });
+  const chainId = connection.networkConfig.chainId;
+  const legacyMaticAddress = LEGACY_MATIC_ADDRESS[chainId];
+  const migrationAddress = MIGRATION_ADDRESS[chainId];
+  if (legacyMaticAddress === undefined || migrationAddress === undefined) {
+    throw Error(`Missing legacy MATIC or migration address for network ${connection.networkName}`);
+  }
+
+  const contract = await upgrades.upgradeProxy(contractAddress, contractFactory, {
+    constructorArgs: [legacyMaticAddress, migrationAddress],
+    unsafeAllowRenames: true,
+  });
   await contract.waitForDeployment();
 
   // Log the deployed address and verification instructions.

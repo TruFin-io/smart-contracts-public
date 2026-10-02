@@ -14,6 +14,11 @@ export const deployment = async () => {
     constants.STAKING_TOKEN_ADDRESS[constants.DEFAULT_CHAIN_ID],
   );
 
+  const legacyMatic = await ethers.getContractAt(
+    constants.STAKING_TOKEN_ABI,
+    constants.LEGACY_MATIC_ADDRESS[constants.DEFAULT_CHAIN_ID],
+  );
+
   const validatorShare = await ethers.getContractAt(
     constants.VALIDATOR_SHARE_ABI,
     constants.VALIDATOR_SHARE_CONTRACT_ADDRESS[constants.DEFAULT_CHAIN_ID],
@@ -57,6 +62,7 @@ export const deployment = async () => {
       constants.FEE,
     ],
     {
+      constructorArgs: [await legacyMatic.getAddress(), constants.MIGRATION_ADDRESS[constants.DEFAULT_CHAIN_ID]],
       redeployImplementation: "always",
     },
   );
@@ -92,6 +98,7 @@ export const deployment = async () => {
     five,
     nonWhitelistedUser, // accounts
     token,
+    legacyMatic,
     validatorShare,
     validatorShare2,
     stakeManager,

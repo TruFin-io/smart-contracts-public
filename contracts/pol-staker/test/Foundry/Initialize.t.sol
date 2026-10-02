@@ -8,6 +8,7 @@ import {ITruStakePOL} from "../../contracts/interfaces/ITruStakePOL.sol";
 import {IValidatorShare} from "../../contracts/interfaces/IValidatorShare.sol";
 import {StakerInfo} from "../../contracts/main/Types.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract InitializeTest is Test {
     TruStakePOL public staker;
@@ -19,14 +20,19 @@ contract InitializeTest is Test {
     address public secondValidatorAddress = makeAddr("SecondValidator");
     address public treasuryAddress = makeAddr("Treasury");
     address public delegateRegistry = makeAddr("DelegateRegistry");
+    address public legacyMaticAddress = makeAddr("LegacyMatic");
+    address public migrationAddress = makeAddr("Migration");
 
     uint16 public fee = 500;
 
     function setUp() public virtual {
-        TruStakePOL logic = new TruStakePOL();
+        vm.etch(legacyMaticAddress, hex"00");
+        vm.etch(migrationAddress, hex"00");
+        TruStakePOL logic = new TruStakePOL(legacyMaticAddress, migrationAddress);
         ERC1967Proxy proxy = new ERC1967Proxy(address(logic), bytes(""));
         staker = TruStakePOL(address(proxy));
         vm.label(address(staker), "Staker");
+        vm.mockCall(legacyMaticAddress, abi.encodeCall(IERC20.balanceOf, (address(staker))), abi.encode(uint256(0)));
     }
 
     function testInitializeSetsVariables() public {

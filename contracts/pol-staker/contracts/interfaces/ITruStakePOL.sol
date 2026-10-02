@@ -15,6 +15,15 @@ interface ITruStakePOL {
     /// @notice Error thrown when user tries to transfer or approve to zero address.
     error ZeroAddressNotSupported();
 
+    /// @notice Error thrown when an immutable integration address has no deployed contract code.
+    error AddressHasNoCode(address account);
+
+    /// @notice Error thrown when the guarded migration helper is called by any address other than this vault.
+    error CallerNotStaker();
+
+    /// @notice Error thrown when the migration contract did not return POL 1:1 for the legacy MATIC submitted.
+    error LegacyMaticMigrationNotOneToOne();
+
     /// @notice Error thrown when a user tries to interact with a whitelisted-only function.
     error UserNotWhitelisted();
 
@@ -176,6 +185,22 @@ interface ITruStakePOL {
         uint256 _totalRewards,
         uint256 _totalAssets
     );
+
+    /// @notice Emitted when forced legacy MATIC rewards are migrated to POL and treasury fee shares are minted.
+    /// @param _legacyMaticAmount Gross legacy MATIC recovered by the vault.
+    /// @param _polReceived Amount of POL received from the migration contract.
+    /// @param _treasuryShares Newly minted shares added to the treasury.
+    /// @param _treasuryBalance Treasury's TruPOL balance after minting.
+    event LegacyMaticSynced(
+        uint256 indexed _legacyMaticAmount,
+        uint256 indexed _polReceived,
+        uint256 indexed _treasuryShares,
+        uint256 _treasuryBalance
+    );
+
+    /// @notice Emitted when a legacy MATIC migration attempt fails and the MATIC is left to be retried later.
+    /// @param _legacyMaticAmount Legacy MATIC balance that could not be migrated.
+    event LegacyMaticSyncFailed(uint256 indexed _legacyMaticAmount);
 
     // Setter Tracking
 
@@ -400,6 +425,17 @@ interface ITruStakePOL {
     /// withdrawals, as they are taken from delegated POL and not its rewards.
     /// @param _validator Address of the validator where POL in the vault should be staked to.
     function compoundRewards(address _validator) external;
+
+    /// @notice Converts the given amount of the vault's legacy MATIC to POL through the Polygon migration
+    /// contract and returns the POL received.
+    /// @dev Callable only by the vault itself, which invokes it inside a `try` from the deposit, withdrawal and
+    /// compound paths so that the approval, migration and allowance reset form one revertible unit. Reverts with
+    /// `CallerNotStaker` for any other caller and with `LegacyMaticMigrationNotOneToOne` when the migration does
+    /// not return exactly 1:1; the vault catches that revert and leaves the MATIC in place, still counted in the
+    /// share price.
+    /// @param _legacyMaticAmount Amount of legacy MATIC to migrate.
+    /// @return polReceived Amount of POL received from the migration.
+    function migrateLegacyMatic(uint256 _legacyMaticAmount) external returns (uint256 polReceived);
 
     /// @notice Claims a previously requested and now unbonded withdrawal.
     /// @param _unbondNonce Nonce of the corresponding delegator unbond.
